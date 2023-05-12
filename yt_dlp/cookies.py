@@ -97,7 +97,7 @@ def extract_cookies_from_browser(browser_name, profile=None, logger=YDLLogger(),
     elif browser_name in CHROMIUM_BASED_BROWSERS:
         return _extract_chrome_cookies(browser_name, profile, keyring, logger)
     else:
-        raise ValueError('unknown browser: {}'.format(browser_name))
+        raise ValueError(f'unknown browser: {browser_name}')
 
 
 def _extract_firefox_cookies(profile, logger):
@@ -116,8 +116,10 @@ def _extract_firefox_cookies(profile, logger):
 
     cookie_database_path = _find_most_recently_used_file(search_root, 'cookies.sqlite')
     if cookie_database_path is None:
-        raise FileNotFoundError('could not find firefox cookies database in {}'.format(search_root))
-    logger.debug('Extracting cookies from: "{}"'.format(cookie_database_path))
+        raise FileNotFoundError(
+            f'could not find firefox cookies database in {search_root}'
+        )
+    logger.debug(f'Extracting cookies from: "{cookie_database_path}"')
 
     with tempfile.TemporaryDirectory(prefix='yt_dlp') as tmpdir:
         cursor = None
@@ -132,7 +134,7 @@ def _extract_firefox_cookies(profile, logger):
                     path=path, path_specified=bool(path), secure=is_secure, expires=expiry, discard=False,
                     comment=None, comment_url=None, rest={})
                 jar.set_cookie(cookie)
-            logger.info('Extracted {} cookies from firefox'.format(len(jar)))
+            logger.info(f'Extracted {len(jar)} cookies from firefox')
             return jar
         finally:
             if cursor is not None:
@@ -147,7 +149,7 @@ def _firefox_browser_dir():
     elif sys.platform == 'darwin':
         return os.path.expanduser('~/Library/Application Support/Firefox')
     else:
-        raise ValueError('unsupported platform: {}'.format(sys.platform))
+        raise ValueError(f'unsupported platform: {sys.platform}')
 
 
 def _get_chromium_based_browser_settings(browser_name):
@@ -187,7 +189,7 @@ def _get_chromium_based_browser_settings(browser_name):
         }[browser_name]
 
     else:
-        raise ValueError('unsupported platform: {}'.format(sys.platform))
+        raise ValueError(f'unsupported platform: {sys.platform}')
 
     # Linux keyring names can be determined by snooping on dbus while opening the browser in KDE:
     # dbus-monitor "interface='org.kde.KWallet'" "type=method_return"
@@ -210,11 +212,12 @@ def _get_chromium_based_browser_settings(browser_name):
 
 
 def _extract_chrome_cookies(browser_name, profile, keyring, logger):
-    logger.info('Extracting cookies from {}'.format(browser_name))
+    logger.info(f'Extracting cookies from {browser_name}')
 
     if not SQLITE_AVAILABLE:
-        logger.warning(('Cannot extract cookies from {} without sqlite3 support. '
-                        'Please use a python interpreter compiled with sqlite3 support').format(browser_name))
+        logger.warning(
+            f'Cannot extract cookies from {browser_name} without sqlite3 support. Please use a python interpreter compiled with sqlite3 support'
+        )
         return YoutubeDLCookieJar()
 
     config = _get_chromium_based_browser_settings(browser_name)
@@ -224,17 +227,18 @@ def _extract_chrome_cookies(browser_name, profile, keyring, logger):
     elif _is_path(profile):
         search_root = profile
         config['browser_dir'] = os.path.dirname(profile) if config['supports_profiles'] else profile
+    elif config['supports_profiles']:
+        search_root = os.path.join(config['browser_dir'], profile)
     else:
-        if config['supports_profiles']:
-            search_root = os.path.join(config['browser_dir'], profile)
-        else:
-            logger.error('{} does not support profiles'.format(browser_name))
-            search_root = config['browser_dir']
+        logger.error(f'{browser_name} does not support profiles')
+        search_root = config['browser_dir']
 
     cookie_database_path = _find_most_recently_used_file(search_root, 'Cookies')
     if cookie_database_path is None:
-        raise FileNotFoundError('could not find {} cookies database in "{}"'.format(browser_name, search_root))
-    logger.debug('Extracting cookies from: "{}"'.format(cookie_database_path))
+        raise FileNotFoundError(
+            f'could not find {browser_name} cookies database in "{search_root}"'
+        )
+    logger.debug(f'Extracting cookies from: "{cookie_database_path}"')
 
     decryptor = get_cookie_decryptor(config['browser_dir'], config['keyring_name'], logger, keyring=keyring)
 
@@ -245,8 +249,9 @@ def _extract_chrome_cookies(browser_name, profile, keyring, logger):
             cursor.connection.text_factory = bytes
             column_names = _get_column_names(cursor, 'cookies')
             secure_column = 'is_secure' if 'is_secure' in column_names else 'secure'
-            cursor.execute('SELECT host_key, name, value, encrypted_value, path, '
-                           'expires_utc, {} FROM cookies'.format(secure_column))
+            cursor.execute(
+                f'SELECT host_key, name, value, encrypted_value, path, expires_utc, {secure_column} FROM cookies'
+            )
             jar = YoutubeDLCookieJar()
             failed_cookies = 0
             unencrypted_cookies = 0
@@ -271,13 +276,15 @@ def _extract_chrome_cookies(browser_name, profile, keyring, logger):
                     comment=None, comment_url=None, rest={})
                 jar.set_cookie(cookie)
             if failed_cookies > 0:
-                failed_message = ' ({} could not be decrypted)'.format(failed_cookies)
+                failed_message = f' ({failed_cookies} could not be decrypted)'
             else:
                 failed_message = ''
-            logger.info('Extracted {} cookies from {}{}'.format(len(jar), browser_name, failed_message))
+            logger.info(
+                f'Extracted {len(jar)} cookies from {browser_name}{failed_message}'
+            )
             counts = decryptor.cookie_counts.copy()
             counts['unencrypted'] = unencrypted_cookies
-            logger.debug('cookie version breakdown: {}'.format(counts))
+            logger.debug(f'cookie version breakdown: {counts}')
             return jar
         finally:
             if cursor is not None:
@@ -326,8 +333,9 @@ def get_cookie_decryptor(browser_root, browser_keyring_name, logger, *, keyring=
     elif sys.platform == 'win32':
         return WindowsChromeCookieDecryptor(browser_root, logger)
     else:
-        raise NotImplementedError('Chrome cookie decryption is not supported '
-                                  'on this platform: {}'.format(sys.platform))
+        raise NotImplementedError(
+            f'Chrome cookie decryption is not supported on this platform: {sys.platform}'
+        )
 
 
 class LinuxChromeCookieDecryptor(ChromeCookieDecryptor):
@@ -387,13 +395,13 @@ class MacChromeCookieDecryptor(ChromeCookieDecryptor):
 
     def decrypt(self, encrypted_value):
         version = encrypted_value[:3]
-        ciphertext = encrypted_value[3:]
-
         if version == b'v10':
             self._cookie_counts['v10'] += 1
             if self._v10_key is None:
                 self._logger.warning('cannot decrypt v10 cookies: no key found', only_once=True)
                 return None
+
+            ciphertext = encrypted_value[3:]
 
             return _decrypt_aes_cbc(ciphertext, self._v10_key, self._logger)
 
@@ -449,7 +457,7 @@ def _extract_safari_cookies(profile, logger):
     if profile is not None:
         logger.error('safari does not support profiles')
     if sys.platform != 'darwin':
-        raise ValueError('unsupported platform: {}'.format(sys.platform))
+        raise ValueError(f'unsupported platform: {sys.platform}')
 
     cookies_path = os.path.expanduser('~/Library/Cookies/Cookies.binarycookies')
 
@@ -463,7 +471,7 @@ def _extract_safari_cookies(profile, logger):
         cookies_data = f.read()
 
     jar = parse_safari_cookies(cookies_data, logger=logger)
-    logger.info('Extracted {} cookies from safari'.format(len(jar)))
+    logger.info(f'Extracted {len(jar)} cookies from safari')
     return jar
 
 
@@ -479,7 +487,7 @@ class DataParser:
 
     def read_bytes(self, num_bytes):
         if num_bytes < 0:
-            raise ParserError('invalid read of {} bytes'.format(num_bytes))
+            raise ParserError(f'invalid read of {num_bytes} bytes')
         end = self.cursor + num_bytes
         if end > len(self._data):
             raise ParserError('reached end of input')
@@ -490,7 +498,7 @@ class DataParser:
     def expect_bytes(self, expected_value, message):
         value = self.read_bytes(len(expected_value))
         if value != expected_value:
-            raise ParserError('unexpected value: {} != {} ({})'.format(value, expected_value, message))
+            raise ParserError(f'unexpected value: {value} != {expected_value} ({message})')
 
     def read_uint(self, big_endian=False):
         data_format = '>I' if big_endian else '<I'
@@ -511,10 +519,11 @@ class DataParser:
 
     def skip(self, num_bytes, description='unknown'):
         if num_bytes > 0:
-            self._logger.debug('skipping {} bytes ({}): {}'.format(
-                num_bytes, description, self.read_bytes(num_bytes)))
+            self._logger.debug(
+                f'skipping {num_bytes} bytes ({description}): {self.read_bytes(num_bytes)}'
+            )
         elif num_bytes < 0:
-            raise ParserError('invalid skip of {} bytes'.format(num_bytes))
+            raise ParserError(f'invalid skip of {num_bytes} bytes')
 
     def skip_to(self, offset, description='unknown'):
         self.skip(offset - self.cursor, description)
@@ -541,7 +550,7 @@ def _parse_safari_cookies_page(data, jar, logger):
     number_of_cookies = p.read_uint()
     record_offsets = [p.read_uint() for _ in range(number_of_cookies)]
     if number_of_cookies == 0:
-        logger.debug('a cookies page of size {} has no cookies'.format(len(data)))
+        logger.debug(f'a cookies page of size {len(data)} has no cookies')
         return
 
     p.skip_to(record_offsets[0], 'unknown page header field')
@@ -649,19 +658,21 @@ def _get_linux_desktop_environment(env):
     if xdg_current_desktop is not None:
         xdg_current_desktop = xdg_current_desktop.split(':')[0].strip()
 
-        if xdg_current_desktop == 'Unity':
-            if desktop_session is not None and 'gnome-fallback' in desktop_session:
-                return _LinuxDesktopEnvironment.GNOME
-            else:
-                return _LinuxDesktopEnvironment.UNITY
-        elif xdg_current_desktop == 'GNOME':
+        if xdg_current_desktop == 'GNOME':
             return _LinuxDesktopEnvironment.GNOME
-        elif xdg_current_desktop == 'X-Cinnamon':
-            return _LinuxDesktopEnvironment.CINNAMON
         elif xdg_current_desktop == 'KDE':
             return _LinuxDesktopEnvironment.KDE
         elif xdg_current_desktop == 'Pantheon':
             return _LinuxDesktopEnvironment.PANTHEON
+        elif xdg_current_desktop == 'Unity':
+            return (
+                _LinuxDesktopEnvironment.GNOME
+                if desktop_session is not None
+                and 'gnome-fallback' in desktop_session
+                else _LinuxDesktopEnvironment.UNITY
+            )
+        elif xdg_current_desktop == 'X-Cinnamon':
+            return _LinuxDesktopEnvironment.CINNAMON
         elif xdg_current_desktop == 'XFCE':
             return _LinuxDesktopEnvironment.XFCE
     elif desktop_session is not None:
@@ -671,11 +682,10 @@ def _get_linux_desktop_environment(env):
             return _LinuxDesktopEnvironment.KDE
         elif 'xfce' in desktop_session:
             return _LinuxDesktopEnvironment.XFCE
-    else:
-        if 'GNOME_DESKTOP_SESSION_ID' in env:
-            return _LinuxDesktopEnvironment.GNOME
-        elif 'KDE_FULL_SESSION' in env:
-            return _LinuxDesktopEnvironment.KDE
+    elif 'GNOME_DESKTOP_SESSION_ID' in env:
+        return _LinuxDesktopEnvironment.GNOME
+    elif 'KDE_FULL_SESSION' in env:
+        return _LinuxDesktopEnvironment.KDE
     return _LinuxDesktopEnvironment.OTHER
 
 
@@ -685,14 +695,13 @@ def _choose_linux_keyring(logger):
     SelectBackend
     """
     desktop_environment = _get_linux_desktop_environment(os.environ)
-    logger.debug('detected desktop environment: {}'.format(desktop_environment.name))
+    logger.debug(f'detected desktop environment: {desktop_environment.name}')
     if desktop_environment == _LinuxDesktopEnvironment.KDE:
-        linux_keyring = _LinuxKeyring.KWALLET
+        return _LinuxKeyring.KWALLET
     elif desktop_environment == _LinuxDesktopEnvironment.OTHER:
-        linux_keyring = _LinuxKeyring.BASICTEXT
+        return _LinuxKeyring.BASICTEXT
     else:
-        linux_keyring = _LinuxKeyring.GNOMEKEYRING
-    return linux_keyring
+        return _LinuxKeyring.GNOMEKEYRING
 
 
 def _get_kwallet_network_wallet(logger):
@@ -719,10 +728,10 @@ def _get_kwallet_network_wallet(logger):
             return default_wallet
         else:
             network_wallet = stdout.decode('utf-8').strip()
-            logger.debug('NetworkWallet = "{}"'.format(network_wallet))
+            logger.debug(f'NetworkWallet = "{network_wallet}"')
             return network_wallet
     except BaseException as e:
-        logger.warning('exception while obtaining NetworkWallet: {}'.format(e))
+        logger.warning(f'exception while obtaining NetworkWallet: {e}')
         return default_wallet
 
 
@@ -738,17 +747,24 @@ def _get_kwallet_password(browser_keyring_name, logger):
     network_wallet = _get_kwallet_network_wallet(logger)
 
     try:
-        proc = Popen([
-            'kwallet-query',
-            '--read-password', '{} Safe Storage'.format(browser_keyring_name),
-            '--folder', '{} Keys'.format(browser_keyring_name),
-            network_wallet
-        ], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+        proc = Popen(
+            [
+                'kwallet-query',
+                '--read-password',
+                f'{browser_keyring_name} Safe Storage',
+                '--folder',
+                f'{browser_keyring_name} Keys',
+                network_wallet,
+            ],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
+        )
 
         stdout, stderr = proc.communicate_or_kill()
         if proc.returncode != 0:
-            logger.error('kwallet-query failed with return code {}. Please consult '
-                         'the kwallet-query man page for details'.format(proc.returncode))
+            logger.error(
+                f'kwallet-query failed with return code {proc.returncode}. Please consult the kwallet-query man page for details'
+            )
             return b''
         else:
             if stdout.lower().startswith(b'failed to read'):
@@ -773,7 +789,7 @@ def _get_kwallet_password(browser_keyring_name, logger):
 
 def _get_gnome_keyring_password(browser_keyring_name, logger):
     if not SECRETSTORAGE_AVAILABLE:
-        logger.error('secretstorage not available {}'.format(SECRETSTORAGE_UNAVAILABLE_REASON))
+        logger.error(f'secretstorage not available {SECRETSTORAGE_UNAVAILABLE_REASON}')
         return b''
     # the Gnome keyring does not seem to organise keys in the same way as KWallet,
     # using `dbus-monitor` during startup, it can be observed that chromium lists all keys
@@ -782,7 +798,7 @@ def _get_gnome_keyring_password(browser_keyring_name, logger):
     with contextlib.closing(secretstorage.dbus_init()) as con:
         col = secretstorage.get_default_collection(con)
         for item in col.get_all_items():
-            if item.get_label() == '{} Safe Storage'.format(browser_keyring_name):
+            if item.get_label() == f'{browser_keyring_name} Safe Storage':
                 return item.get_secret()
         else:
             logger.error('failed to read from keyring')
@@ -813,11 +829,18 @@ def _get_mac_keyring_password(browser_keyring_name, logger):
     logger.debug('using find-generic-password to obtain password from OSX keychain')
     try:
         proc = Popen(
-            ['security', 'find-generic-password',
-             '-w',  # write password to stdout
-             '-a', browser_keyring_name,  # match 'account'
-             '-s', '{} Safe Storage'.format(browser_keyring_name)],  # match 'service'
-            stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+            [
+                'security',
+                'find-generic-password',
+                '-w',
+                '-a',
+                browser_keyring_name,
+                '-s',
+                f'{browser_keyring_name} Safe Storage',
+            ],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
+        )
 
         stdout, stderr = proc.communicate_or_kill()
         if stdout[-1:] == b'\n':
@@ -920,7 +943,7 @@ def _open_database_copy(database_path, tmpdir):
 
 
 def _get_column_names(cursor, table_name):
-    table_info = cursor.execute('PRAGMA table_info({})'.format(table_name)).fetchall()
+    table_info = cursor.execute(f'PRAGMA table_info({table_name})').fetchall()
     return [row[1].decode('utf-8') for row in table_info]
 
 
@@ -928,9 +951,7 @@ def _find_most_recently_used_file(root, filename):
     # if there are multiple browser profiles, take the most recently used one
     paths = []
     for root, dirs, files in os.walk(root):
-        for file in files:
-            if file == filename:
-                paths.append(os.path.join(root, file))
+        paths.extend(os.path.join(root, file) for file in files if file == filename)
     return None if not paths else max(paths, key=lambda path: os.lstat(path).st_mtime)
 
 

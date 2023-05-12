@@ -12,9 +12,7 @@ if OS_NAME == 'Windows':
         VarStruct, VarFileInfo, StringStruct, StringTable,
         StringFileInfo, FixedFileInfo, VSVersionInfo, SetVersion,
     )
-elif OS_NAME == 'Darwin':
-    pass
-else:
+elif OS_NAME != 'Darwin':
     raise Exception('{OS_NAME} is not supported')
 
 ARCH = platform.architecture()[0][:2]
@@ -25,8 +23,7 @@ def main():
     version = read_version()
 
     suffix = '_macos' if OS_NAME == 'Darwin' else '_x86' if ARCH == '32' else ''
-    final_file = 'dist/%syt-dlp%s%s' % (
-        'yt-dlp/' if '--onedir' in opts else '', suffix, '.exe' if OS_NAME == 'Windows' else '')
+    final_file = f"dist/{'yt-dlp/' if '--onedir' in opts else ''}yt-dlp{suffix}{'.exe' if OS_NAME == 'Windows' else ''}"
 
     print(f'Building yt-dlp v{version} {ARCH}bit for {OS_NAME} with options {opts}')
     print('Remember to update the version using  "devscripts/update-version.py"')
@@ -56,7 +53,7 @@ def main():
 def parse_options():
     # Compatability with older arguments
     opts = sys.argv[1:]
-    if opts[0:1] in (['32'], ['64']):
+    if opts[:1] in (['32'], ['64']):
         if ARCH != opts[0]:
             raise Exception(f'{opts[0]}bit executable cannot be built on a {ARCH}bit system')
         opts = opts[1:]
@@ -103,32 +100,60 @@ def set_version_info(exe, version):
 def windows_set_version(exe, version):
     version_list = version_to_list(version)
     suffix = '_x86' if ARCH == '32' else ''
-    SetVersion(exe, VSVersionInfo(
-        ffi=FixedFileInfo(
-            filevers=version_list,
-            prodvers=version_list,
-            mask=0x3F,
-            flags=0x0,
-            OS=0x4,
-            fileType=0x1,
-            subtype=0x0,
-            date=(0, 0),
+    SetVersion(
+        exe,
+        VSVersionInfo(
+            ffi=FixedFileInfo(
+                filevers=version_list,
+                prodvers=version_list,
+                mask=0x3F,
+                flags=0x0,
+                OS=0x4,
+                fileType=0x1,
+                subtype=0x0,
+                date=(0, 0),
+            ),
+            kids=[
+                StringFileInfo(
+                    [
+                        StringTable(
+                            '040904B0',
+                            [
+                                StringStruct(
+                                    'Comments',
+                                    f'yt-dlp{suffix} Command Line Interface.',
+                                ),
+                                StringStruct(
+                                    'CompanyName', 'https://github.com/yt-dlp'
+                                ),
+                                StringStruct(
+                                    'FileDescription',
+                                    f"yt-dlp{' (32 Bit)' if ARCH == '32' else ''}",
+                                ),
+                                StringStruct('FileVersion', version),
+                                StringStruct(
+                                    'InternalName', f'yt-dlp{suffix}'
+                                ),
+                                StringStruct(
+                                    'LegalCopyright',
+                                    'pukkandan.ytdlp@gmail.com | UNLICENSE',
+                                ),
+                                StringStruct(
+                                    'OriginalFilename', f'yt-dlp{suffix}.exe'
+                                ),
+                                StringStruct('ProductName', f'yt-dlp{suffix}'),
+                                StringStruct(
+                                    'ProductVersion',
+                                    f'{version}{suffix} on Python {platform.python_version()}',
+                                ),
+                            ],
+                        )
+                    ]
+                ),
+                VarFileInfo([VarStruct('Translation', [0, 1200])]),
+            ],
         ),
-        kids=[
-            StringFileInfo([StringTable('040904B0', [
-                StringStruct('Comments', 'yt-dlp%s Command Line Interface.' % suffix),
-                StringStruct('CompanyName', 'https://github.com/yt-dlp'),
-                StringStruct('FileDescription', 'yt-dlp%s' % (' (32 Bit)' if ARCH == '32' else '')),
-                StringStruct('FileVersion', version),
-                StringStruct('InternalName', f'yt-dlp{suffix}'),
-                StringStruct('LegalCopyright', 'pukkandan.ytdlp@gmail.com | UNLICENSE'),
-                StringStruct('OriginalFilename', f'yt-dlp{suffix}.exe'),
-                StringStruct('ProductName', f'yt-dlp{suffix}'),
-                StringStruct(
-                    'ProductVersion', f'{version}{suffix} on Python {platform.python_version()}'),
-            ])]), VarFileInfo([VarStruct('Translation', [0, 1200])])
-        ]
-    ))
+    )
 
 
 if __name__ == '__main__':

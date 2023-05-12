@@ -76,7 +76,7 @@ def shorten_protocol_name(proto, simplify=False):
         'websocket_frag': 'WSfrag',
     }
     if simplify:
-        short_protocol_names.update({
+        short_protocol_names |= {
             'https': 'http',
             'ftps': 'ftp',
             'm3u8_native': 'm3u8',
@@ -84,7 +84,7 @@ def shorten_protocol_name(proto, simplify=False):
             'rtmp_ffmpeg': 'rtmp',
             'm3u8_frag_urls': 'm3u8',
             'dash_frag_urls': 'dash',
-        })
+        }
     return short_protocol_names.get(proto, proto)
 
 
